@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <link rel='shortcut icon' type='image/png' href='assets/images/favicon.png' />
+    <title>JS ID3 Builder</title>
+    <script type="text/javascript" src="assets/vendor/d3.v4.min.js"></script>
+    <script type="text/javascript" src="assets/vendor/knockout-3.4.1.js"></script>
+    <script type="text/javascript" src="assets/vendor/knockout.files.js"></script>
+    <script type="text/javascript" src="assets/js/util.js"></script>
+    <script type="text/javascript" src="assets/js/core.js"></script>
+    <link rel="stylesheet" type="text/css" href="assets/vendor/semantic/semantic.min.css">
+    <script type="text/javascript" src="assets/vendor/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript" src="assets/vendor/semantic/semantic.min.js"></script>
+    <style type="text/css">
+        body {
+            background-color: #DADADA;
+        }
+        
+        footer {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            padding: 1rem;
+            background-color: #efefef;
+            text-align: center;
+        }
+        
+        .image {
+            margin-top: -100px;
+        }
+        
+        .empty-space {
+            height: 50px;
+        }
+        
+        .padding-bot {
+            padding-bottom: 80px;
+        }
+        
+        .node circle {
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 3px;
+        }
+        
+        .node text {
+            font: 12px sans-serif;
+        }
+        
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+        
+        #tree {
+            height: 400px;
+            width: 600px;
+        }
+    </style>
+</head>
+
+<body class="pushable">
+    <div class="pusher">
+        <div class="full height padding-bot">
+            <div class="empty-space"></div>
+            <div class="ui middle aligned center aligned grid full height" id="page">
+                <div class="column">
+                    <div class="ui middle center aligned grid">
+                        <div class="column">
+                            <h2 class="ui image header">
+                                <img src="assets/images/logo.png" class="image">
+                                <div class="content">
+                                    JS ID3 Builder
+                                </div>
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div class="ui middle center aligned grid">
+                        <div class="ui large form">
+                            <div class="ui three  steps">
+                                <div class="step" data-bind="css: {active: state() == 1, disabled: state() != 1}">
+                                    <i class="wizard icon"></i>
+                                    <div class="content">
+                                        <div class="title">Welcome</div>
+                                        <div class="description">Let's shove some data</div>
+                                    </div>
+                                </div>
+                                <div class="step" data-bind="css: {active: state() == 2, disabled: state() != 2}">
+                                    <i class="edit icon"></i>
+                                    <div class="content">
+                                        <div class="title">Edit</div>
+                                        <div class="description">Create/update your training and test data</div>
+                                    </div>
+                                </div>
+                                <div class="step" data-bind="css: {active: state() == 3, disabled: state() != 3}">
+                                    <i class="sitemap icon"></i>
+                                    <div class="content">
+                                        <div class="title">Build and Test</div>
+                                        <div class="description">Your ID3 is ready</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui middle center aligned grid">
+                        <div class="ui" id="content-placeholder">
+                            <div class="ui segment content" id="content-0" data-bind="visible: state() == 0">
+                            </div>
+                            <div class="ui segment content" id="content-1" data-bind="visible: state() == 1">
+                                <div class="ui two column middle aligned very relaxed stackable divided grid">
+                                    <div class="ui column">
+                                        <div class="ui form">
+                                            <div class="field">
+                                                <div class="ui left icon input">
+                                                    <i class="file icon"></i>
+                                                    <input type="file" id="arff_file" data-bind="files: { onLoaded: fileLoadedCallback, readAs: 'text'}" accept=".arff" />
+                                                </div>
+                                            </div>
+                                            <div class="ui teal labeled icon button" data-bind="click: parseArff"><i class="upload icon"></i>Select ARFF file</div>
+                                        </div>
+                                    </div>
+                                    <div class="center aligned column">
+                                        <div class="ui big green labeled icon button" data-bind="click: createEmpty">
+                                            <i class="signup icon"></i> Create empty data
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui segment content" id="content-2" data-bind="visible: state() == 2">
+                                <div class="ui column">
+                                    <div class="ui column">
+                                        <div class="ui corner bold labeled input" data-bind="css: {error: isRelationNameError}">
+                                            <input type="text" placeholder="Put relation name..." data-bind="value: relationName">
+                                            <div class="ui corner label" data-bind="css:{red: isRelationNameError, green: !isRelationNameError()}">
+                                                <i class="icon white" data-bind="css:{asterisk: isRelationNameError, check: !isRelationNameError()}"></i>
+                                            </div>
+                                        </div>
+                                        <h4 class="ui">Attributes</h4>
+                                        <p>You have <span data-bind="text: attributes().length">0</span> attribute(s)</p>
+                                        <table class="ui celled table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Attribute Name</th>
+                                                    <th>Possible Values</th>
+                                                    <th>Class?</th>
+                                                    <th>Options</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody data-bind="foreach:attributes">
+                                                <tr data-bind="css: {error: !isValid()}">
+                                                    <td>
+                                                        <div class="ui input" data-bind="css: {error: isNameError}">
+                                                            <input class="required" placeholder="string" data-bind="value: name, uniqueName: true" />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="ui input" data-bind="css: {error: arePossibleValuesError}">
+                                                            <input class="required" placeholder="comma delimited string" data-bind="value: possibleValuesString, uniqueName: true" />
+                                                        </div>
+                                                    </td>
+                                                    <td data-bind="css: {error: $root.isClassError}">
+                                                        <div class="ui slider checkbox">
+                                                            <input type="checkbox" name="is-class" tabindex="0" data-bind="checked: isClass, click: $root.setClass" />
+                                                            <label></label>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <a href="#" data-bind="click: $root.removeAttribute">Delete</a>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                        <button class="ui blue button" data-bind="click: addAtribute">Add New Atribute</button>
+                                    </div>
+                                    <div class="ui divider"></div>
+                                    <div class="ui column">
+                                        <h4 class="ui">Data</h4>
+                                        <p>You have <span data-bind="text: data().length">0</span> row(s)</p>
+                                        <p />
+                                        <table class="ui celled table">
+                                            <thead>
+                                                <tr>
+                                                    <!-- ko foreach: attributes -->
+                                                    <th data-bind="text: name"></th>
+                                                    <!-- /ko -->
+                                                    <th>Training?</th>
+                                                    <th>Options</th>
+                                                </tr>
+
+                                            </thead>
+                                            <tbody data-bind="foreach: data">
+                                                <tr>
+                                                    <!-- ko foreach: $root.attributes-->
+                                                    <td>
+                                                        <select class="ui search fluid dropdown" data-bind="options: possibleValues, value: $parent.fields()[$data.name()]"></select>
+                                                    </td>
+                                                    <!-- /ko -->
+                                                    <td>
+                                                        <div class="ui slider checkbox">
+                                                            <input type="checkbox" name="is-class" tabindex="0" data-bind="checked: isTrainingData" />
+                                                            <label></label>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <a href="#" data-bind="click: $root.removeRow">Delete</a>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                        <button class="ui blue button" data-bind="click: addRow, css: {disabled: !areAttributesValid()}">Add New Row</button>
+                                        <div class="ui divider"></div>
+                                        <button class="ui green button" data-bind="click: goToPreviousState">< Prev</button>
+                                        <button class="ui green button" data-bind="enable: isReadyToBuild, click: buildID3">Next ></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui segment content" id="content-0" data-bind="visible: state() == 3">
+                                <div class="ui column">
+                                    <h3 class="ui"><span data-bind="text: relationName"></span> ID3 Decision Tree</h4>
+                                        <div class="ui top attached tabular menu">
+                                            <a class="item active" data-tab="first">Steps</a>
+                                            <a class="item" data-tab="second">Tree View</a>
+                                            <a class="item" data-tab="third">Testing</a>
+                                        </div>
+                                        <div class="ui bottom attached tab segment active" data-tab="first" data-bind="with: id3">
+
+                                            <!-- ko foreach: buildSteps -->
+                                            <h3 class="ui">Node #<span data-bind="text: id "></span></h3>
+                                            <table class="ui celled structured table">
+                                                <!-- ko if: !homogen() -->
+                                                <thead>
+                                                    <tr>
+                                                        <th rowspan="2">Info</th>
+                                                        <th class="aligned center" data-bind="attr: { colspan: entropies().length }">Gain</th>
+                                                    </tr>
+                                                    <tr>
+                                                        <!-- ko foreach: entropies -->
+                                                        <th data-bind="text: attributeName"></th>
+                                                        <!-- /ko -->
+                                                    </tr>
+
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td data-bind="text: Math.round(infoD()*100)/100;">
+                                                        </td>
+                                                        <!-- ko foreach: entropies -->
+                                                        <td>
+                                                            <i class="icon green" data-bind="css: {checkmark: attributeName() == $parent.maxGainAttribute()}"></i>
+                                                            <span data-bind="text: Math.round(gain()*100)/100"></span>
+                                                        </td>
+                                                        <!-- /ko -->
+                                                    </tr>
+                                                </tbody>
+                                                <!-- /ko -->
+
+                                                <!-- ko if: homogen -->
+                                                <thead>
+                                                    <tr>
+                                                        <th>Value</th>
+                                                        <th>Class</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td data-bind="text: value">
+                                                        </td>
+                                                        <td data-bind="text: classification">
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                                <!-- /ko -->
+                                            </table>
+                                            <!-- /ko -->
+                                        </div>
+                                        <div class="ui bottom attached tab segment" data-tab="second">
+                                            <div id="tree"></div>
+                                        </div>
+                                        <div class="ui bottom attached tab segment" data-tab="third">
+                                            <!-- ko with: id3 -->
+                                            <h4 class="ui">Test Data</h4>
+                                            <p>You have <span data-bind="text: testData().length">0</span> row(s)</p>
+                                            <p />
+                                            <table class="ui celled table">
+                                                <thead>
+                                                    <tr>
+                                                        <!-- ko foreach: attributes -->
+                                                        <th data-bind="text: name"></th>
+                                                        <!-- /ko -->
+                                                        <th>Class</th>
+                                                        <th>Prediction</th>
+                                                    </tr>
+
+                                                </thead>
+                                                <tbody data-bind="foreach: testData">
+                                                    <tr>
+                                                        <!-- ko foreach: $parent.attributes-->
+                                                        <td data-bind="text: $parent.fields()[$data.name()]">
+                                                        </td>
+                                                        <!-- /ko -->
+                                                        <td data-bind="text: $data.fields()[$parent.class().name()]">
+                                                        </td>
+                                                        <td data-bind="text: prediction, css: {error: prediction() != $data.fields()[$parent.class().name()], positive: prediction() != $data.fields()[$parent.class().name()]}">
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+
+                                            <h4 class="ui">Accuracy</h4>
+                                            <!-- ko if: testData().length == 0 -->
+                                            <p>You don't have test data, please edit your data</p>
+                                            <!-- /ko-->
+                                            <!-- ko if: testData().length > 0 -->
+                                            <p>You have <span data-bind="text: Math.round(accuracy()*100)">0</span>% accuracy</p>
+                                            <p />
+                                            <table class="ui celled table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Correct Guess(es)</th>
+                                                        <th>Wrong Guess(es)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody >
+                                                    <tr>
+                                                        <td data-bind="text: correctPrediction"></td>  
+                                                        <td data-bind="text: wrongPrediction"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <!-- /ko-->
+
+                                            <!-- /ko -->
+
+                                        </div>
+                                        <div class="ui divider"></div>
+                                        <button class="ui green button" data-bind="click: goToPreviousState">< Prev</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer>
+            Logo made by <a href="http://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="http://www.flaticon.com"
+                title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0"
+                target="_blank">CC 3.0 BY</a>
+
+        </footer>
+    </div>
+    <script type="text/javascript" src="assets/js/visual.js"></script>
+    <script type="text/javascript">
+        var decisionTree = null;
+        $(function() {
+            decisionTree = new  DecisionTree($, ko, {});
+            decisionTree.init("page");
+            $('.menu .item').tab();
+        });
+    </script>
+</body>
+
+</html>
